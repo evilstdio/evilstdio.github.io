@@ -54,7 +54,10 @@
     else if (kind === 'poweroff') CRT.powerOff();
     else if (kind === 'theme') { CRT.degauss(); TERM.dirty = true; }
     else if (kind === 'openurl') followLink(value);
+    else if (kind === 'sound') TERM.soundOn = SFX.setEnabled(value);
   };
+
+  TERM.soundOn = SFX.enabled;
 
   CRT.onReady = function () { TERM.bootSequence(); TERM.dirty = true; };
 
@@ -81,7 +84,7 @@
   }
 
   stage.addEventListener('pointerdown', function (e) {
-    if (CRT.state === 'off') { powerOn(); return; }
+    if (CRT.state === 'off') { SFX.thunk(); powerOn(); return; }
 
     var url = urlAt(e.clientX, e.clientY);
     if (url) { followLink(url); return; }
@@ -105,11 +108,19 @@
     CapsLock: 1, NumLock: 1, ScrollLock: 1, ContextMenu: 1
   };
 
+  function keySound(key) {
+    if (key === 'Enter') return 'enter';
+    if (key === ' ') return 'space';
+    if (key === 'Backspace') return 'back';
+    return 'type';
+  }
+
   window.addEventListener('keydown', function (e) {
     if (CRT.state === 'off') {
       if (PASSTHROUGH[e.key] || MODIFIER[e.key]) return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === 'Tab') return;
+      SFX.thunk();
       powerOn();
       e.preventDefault();
       return;
@@ -123,6 +134,7 @@
     if (e.key === 'PageDown') { TERM.scroll(-(SCR.rows - 2)); e.preventDefault(); return; }
 
     if (TERM.key(e)) {
+      SFX.key(keySound(e.key));
       TERM.dirty = true;
       e.preventDefault();
     }
@@ -137,6 +149,7 @@
     ghost.value = '';
     for (var i = 0; i < v.length; i++) {
       TERM.key({ key: v[i], preventDefault: function () {} });
+      SFX.key(keySound(v[i]));
     }
     TERM.dirty = true;
   });
@@ -145,6 +158,7 @@
   keys.addEventListener('click', function (e) {
     var b = e.target.closest('button');
     if (!b || CRT.state === 'off') return;
+    SFX.key('enter');
     TERM.type(b.getAttribute('data-cmd'));
     TERM.dirty = true;
   });
