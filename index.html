@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>stdio</title>
+<meta name="description" content="Security engineer portfolio: red team operations, cloud security, reverse engineering and detection engineering">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#128421;</text></svg>">
+</head>
+<body>
+
+<canvas id="stage" aria-hidden="true"></canvas>
+
+<button class="sr-power" id="powerBtn">Power on the terminal</button>
+
+<div class="keys" id="keys">
+  <button data-cmd="help">help</button>
+  <button data-cmd="about">about</button>
+  <button data-cmd="skills">skills</button>
+  <button data-cmd="projects">projects</button>
+  <button data-cmd="contact">contact</button>
+  <button data-cmd="clear">clear</button>
+</div>
+
+<input id="ghost" class="ghost" autocomplete="off" autocorrect="off"
+       autocapitalize="off" spellcheck="false" aria-hidden="true" tabindex="-1">
+<div class="fallback" id="fallback">
+  <header>
+    <h1>STDIO</h1>
+    <p>Security Tool Developer &middot; Red Teamer </p>
+  </header>
+
+  <section>
+    <h2>About</h2>
+    <p>A developer and cybersecurity enthusiast focused on reverse engineering, malware
+       analysis, and building security tools.</p>
+    <p>I created Jarscanner, a static malware analyzer designed to detect suspicious
+       behavior in Java and Minecraft mod files. I enjoy researching how malicious
+       software works, improving detection techniques, and turning that knowledge into
+       practical, user-friendly tools.</p>
+  </section>
+
+  <section>
+    <h2>Toolchain</h2>
+    <ul>
+      <li><b>Detect It Easy</b> - packer and obfuscator identification</li>
+      <li><b>IDA Pro</b> - native disassembly and decompilation</li>
+      <li><b>Recaf</b> - JVM bytecode analysis and editing</li>
+      <li><b>Diobfuscator</b> - JAR deobfuscation</li>
+      <li><b>dnSpy</b> - .NET decompiler and debugger</li>
+      <li><b>pyinstxtractor</b> - unpacking PyInstaller executables</li>
+      <li><b>1shot</b> - PyArmor deobfuscation</li>
+      <li><b>Burp Suite</b> - web proxy, request tampering, API testing</li>
+      <li><b>Wireshark</b> - traffic capture, C2 and exfil paths</li>
+    </ul>
+    <p>Languages: Python, Java, JavaScript</p>
+  </section>
+
+  <section>
+    <h2>Selected work</h2>
+    <ul>
+      <li><b>Jarscanner.org</b> - static malware analysis platform for Java archives, with an
+          emphasis on Minecraft mods and other JAR-based software. Inspects class files,
+          manifests, embedded strings, URLs, webhooks, suspicious APIs and obfuscation
+          patterns without executing the sample, and reports known malware families and
+          potentially malicious functionality. Built with Java, TypeScript and Node.js.</li>
+      <li><b>Blog</b> - long-form analysis of Java malware families: the loaders, stealers
+          and RATs that circulate through Minecraft mods and cracked plugins. Each post
+          walks a real sample from packing and obfuscation through to its exfiltration
+          path and the indicators worth detecting on.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Contact</h2>
+    <p><a href="mailto:stdio@jarscanner.org">stdio@jarscanner.org</a></p>
+    <p><a href="https://github.com/evilstdio" rel="noopener noreferrer">github.com/evilstdio</a></p>
+  </section>
+</div>
+
+<script src="assets/js/gl.js"></script>
+<script src="assets/js/geometry.js"></script>
+<script src="assets/js/content.js"></script>
+<script src="assets/js/screen.js"></script>
+<script src="assets/js/terminal.js"></script>
+<script src="assets/js/crt.js"></script>
+<script src="assets/js/main.js"></script>
+</body>
+</html>
