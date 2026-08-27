@@ -15,6 +15,7 @@
   };
 
   var gl, canvas, meshes = {}, progs = {}, tex = {}, ready = false;
+  var rackPanels = [], RACK_LIGHTS = new Float32Array(9);
 
 
   var COMMON_VS = [
@@ -45,8 +46,28 @@
     '  float front = smoothstep(-0.75, 0.35, P.z);',
     '  return uScreenCol * uScreenGlow * acc * front;',
     '}',
+    'uniform vec3 uRack[3];',
+    'uniform vec3 uRackCol;',
+    'vec3 rackLight(vec3 P, vec3 N){',
+    '  float acc = 0.0;',
+    '  for (int i = 0; i < 3; i++) {',
+    '    vec3 dd = uRack[i] - P;',
+    '    float dist = length(dd);',
+    '    acc += max(dot(N, dd / dist), 0.0) / (1.0 + 0.10 * dist * dist);',
+    '  }',
+    '  return uRackCol * acc;',
+    '}',
     'float hash3(vec3 p){',
     '  return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453);',
+    '}',
+    'float vnoise(vec3 p){',
+    '  vec3 i = floor(p), f = fract(p);',
+    '  f = f * f * (3.0 - 2.0 * f);',
+    '  float a = mix(mix(hash3(i + vec3(0.0, 0.0, 0.0)), hash3(i + vec3(1.0, 0.0, 0.0)), f.x),',
+    '                mix(hash3(i + vec3(0.0, 1.0, 0.0)), hash3(i + vec3(1.0, 1.0, 0.0)), f.x), f.y);',
+    '  float b = mix(mix(hash3(i + vec3(0.0, 0.0, 1.0)), hash3(i + vec3(1.0, 0.0, 1.0)), f.x),',
+    '                mix(hash3(i + vec3(0.0, 1.0, 1.0)), hash3(i + vec3(1.0, 1.0, 1.0)), f.x), f.y);',
+    '  return mix(a, b, f.z);',
     '}'
   ].join('\n');
 
@@ -55,6 +76,7 @@
     'varying vec3 vPos; varying vec3 vNrm; varying vec2 vUv;',
     'uniform vec3 uEye; uniform vec3 uAlbedo;',
     'uniform float uUseMap;',
+    'uniform float uRackK;',
     'uniform sampler2D uMap;',
     LIGHT_CHUNK,
     'void main(){',
@@ -62,12 +84,13 @@
     '  vec3 V = normalize(uEye - vPos);',
     '  if (dot(N, V) < 0.0) N = -N;',
     '',
-    '  vec3 albedo = uAlbedo * (0.92 + 0.16 * hash3(floor(vPos * 190.0)));',
+    '  vec3 albedo = uAlbedo * (0.94 + 0.11 * vnoise(vPos * 22.0));',
     '  if (uUseMap > 0.5) albedo *= texture2D(uMap, vUv).rgb;',
     '',
     '  vec3 L = normalize(vec3(-0.62, 0.80, 0.52));',
     '  vec3 col = albedo * (0.030 + 0.145 * max(dot(N, L), 0.0));',
     '  col += albedo * tubeLight(vPos, N) * 0.60;',
+    '  col += albedo * rackLight(vPos, N) * uRackK;',
     '',
     '  float rim = pow(1.0 - max(dot(N, V), 0.0), 3.5);',
     '  col += mix(vec3(0.05, 0.07, 0.10), uScreenCol, 0.45) * rim * 0.32;',
@@ -89,15 +112,22 @@
     '  vec3 V = normalize(uEye - vPos);',
     '  if (dot(N, V) < 0.0) N = -N;',
     '',
-    '  float g1 = hash3(floor(vPos * 6.0));',
-    '  float g2 = hash3(floor(vPos * 41.0));',
-    '  vec3 albedo = uAlbedo * (0.80 + 0.30 * g1 + 0.12 * g2);',
+    '  float m = vnoise(vPos * 0.30) * 0.65 + vnoise(vPos * 0.95) * 0.35;',
+    '  vec3 albedo = uAlbedo * (0.90 + 0.20 * m);',
     '',
-    '  vec3 col = albedo * 0.016;',
+    '  float sky = 0.5 + 0.5 * N.y;',
+    '  vec3 col = albedo * mix(vec3(0.070, 0.075, 0.092),',
+    '                          vec3(0.235, 0.245, 0.275), sky);',
+    '',
+    '  vec3 L = normalize(vec3(-0.35, 0.86, 0.30));',
+    '  col += albedo * 0.11 * max(dot(N, L), 0.0);',
+    '',
     '  col += albedo * tubeLight(vPos, N) * 1.25;',
+    '  col += albedo * rackLight(vPos, N) * 0.85;',
     '',
     '  float d = length(vPos.xz - vec2(0.0, 1.2));',
-    '  col *= exp(-d * 0.155);',
+    '  col *= exp(-max(0.0, d - 4.0) * 0.055);',
+    '  col *= mix(1.0, 0.34, smoothstep(-9.0, 6.0, vPos.y));',
     '  gl_FragColor = vec4(col, 1.0);',
     '}'
   ].join('\n');
@@ -171,6 +201,49 @@
     '}'
   ].join('\n');
 
+  var RACK_FS = [
+    'precision highp float;',
+    'varying vec2 vUv;',
+    'uniform float uTime, uSeed, uUnits;',
+    '',
+    'float hash21(vec2 p){',
+    '  p = fract(p * vec2(127.13, 311.7));',
+    '  p += dot(p, p + 34.71);',
+    '  return fract(p.x * p.y);',
+    '}',
+    '',
+    'void main(){',
+    '  float ry  = vUv.y * uUnits;',
+    '  float row = floor(ry);',
+    '  float fy  = fract(ry);',
+    '',
+    '  float seam = smoothstep(0.0, 0.07, fy) * smoothstep(1.0, 0.93, fy);',
+    '  vec3 col = vec3(0.020, 0.025, 0.032) * seam;',
+    '',
+    '  float rs = hash21(vec2(row, uSeed * 37.0));',
+    '',
+    '  float cols = 22.0;',
+    '  float gx = vUv.x * cols;',
+    '  float ci = floor(gx);',
+    '  float cf = fract(gx);',
+    '  float hasLed = clamp(step(ci, 2.0) + step(14.0, ci) * step(rs, 0.45), 0.0, 1.0);',
+    '',
+    '  float seed  = hash21(vec2(ci, row + uSeed * 91.0));',
+    '  float rate  = 0.6 + seed * 7.0;',
+    '  float blink = step(0.42, hash21(vec2(floor(uTime * rate), seed * 53.0)));',
+    '  blink = mix(blink, 1.0, step(0.82, seed));',
+    '',
+    '  vec2 d = vec2(cf - 0.5, (fy - 0.5) * 1.9);',
+    '  float lamp = smoothstep(0.34, 0.06, length(d));',
+    '',
+    '  vec3 tint = mix(vec3(0.15, 1.00, 0.35), vec3(1.00, 0.62, 0.10), step(0.55, seed));',
+    '  tint = mix(tint, vec3(1.00, 0.22, 0.14), step(0.92, seed));',
+    '',
+    '  col += tint * lamp * blink * hasLed * 1.2;',
+    '  gl_FragColor = vec4(col, 1.0);',
+    '}'
+  ].join('\n');
+
   var LED_FS = [
     'precision mediump float;',
     'varying vec2 vUv;',
@@ -196,7 +269,8 @@
     progs.room    = GLX.program(gl, COMMON_VS, ROOM_FS, ATTRS);
     progs.screen  = GLX.program(gl, COMMON_VS, SCREEN_FS, ATTRS);
     progs.led     = GLX.program(gl, COMMON_VS, LED_FS, ATTRS);
-    if (!progs.plastic || !progs.room || !progs.screen || !progs.led) return false;
+    progs.rack    = GLX.program(gl, COMMON_VS, RACK_FS, ATTRS);
+    if (!progs.plastic || !progs.room || !progs.screen || !progs.led || !progs.rack) return false;
 
     meshes.shell    = GEO.shell().upload(gl);
     meshes.keyboard = GEO.keyboard().upload(gl);
@@ -204,6 +278,16 @@
     meshes.room     = GEO.room().upload(gl);
     meshes.plate    = GEO.plate(SCR.PLATE_V0, SCR.PLATE_V1).upload(gl);
     meshes.led      = GEO.led().upload(gl);
+    meshes.racks    = GEO.rackBodies().upload(gl);
+    meshes.desk     = GEO.desk().upload(gl);
+    meshes.mouse    = GEO.mouse().upload(gl);
+    meshes.pad      = GEO.mousePad().upload(gl);
+
+    rackPanels = GEO.rackPanels().map(function (p) {
+      return { mesh: p.mesh.upload(gl), seed: p.seed, units: p.units };
+    });
+
+    RACK_LIGHTS.set(GEO.rackLights().subarray(0, 9));
 
     tex.screen = GLX.texture(gl, SCR.canvas);
     tex.glow   = GLX.texture(gl, SCR.glowCanvas);
@@ -458,15 +542,23 @@
 
   var CASE_ALBEDO   = [0.62, 0.585, 0.50];
   var KEY_ALBEDO    = [0.50, 0.475, 0.415];
-  var DESK_ALBEDO   = [0.30, 0.245, 0.195];
+  var DESK_ALBEDO   = [0.34, 0.255, 0.185];
+  var ROOM_ALBEDO   = [0.36, 0.365, 0.395];
+  var PAD_ALBEDO    = [0.085, 0.090, 0.105];
 
   var eyePos = [0, 0, 8];
 
-  function setLight(p, glowCol, glowAmt) {
+  var RACK_ALBEDO = [0.30, 0.315, 0.345];
+  var RACK_COL    = [0.22, 0.62, 0.34];
+
+  function setLight(p, glowCol, glowAmt, rackK) {
     gl.uniform3fv(p.u.uSamples, SAMPLES);
     gl.uniform3f(p.u.uScreenCol, glowCol[0], glowCol[1], glowCol[2]);
     gl.uniform1f(p.u.uScreenGlow, glowAmt);
+    gl.uniform3fv(p.u.uRack, RACK_LIGHTS);
+    gl.uniform3f(p.u.uRackCol, RACK_COL[0], RACK_COL[1], RACK_COL[2]);
     gl.uniform3f(p.u.uEye, eyePos[0], eyePos[1], eyePos[2]);
+    if (p.u.uRackK) gl.uniform1f(p.u.uRackK, rackK === undefined ? 0.35 : rackK);
   }
 
   function drawWith(p, mesh, setup) {
@@ -522,8 +614,25 @@
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     drawWith(progs.room, meshes.room, function (p) {
-      gl.uniform3f(p.u.uAlbedo, DESK_ALBEDO[0], DESK_ALBEDO[1], DESK_ALBEDO[2]);
+      gl.uniform3f(p.u.uAlbedo, ROOM_ALBEDO[0], ROOM_ALBEDO[1], ROOM_ALBEDO[2]);
       setLight(p, glowCol, glowAmt);
+    });
+
+    drawWith(progs.plastic, meshes.desk, function (p) {
+      gl.uniform3f(p.u.uAlbedo, DESK_ALBEDO[0], DESK_ALBEDO[1], DESK_ALBEDO[2]);
+      gl.uniform1f(p.u.uUseMap, 0);
+      setLight(p, glowCol, glowAmt);
+    });
+
+    drawWith(progs.room, meshes.pad, function (p) {
+      gl.uniform3f(p.u.uAlbedo, PAD_ALBEDO[0], PAD_ALBEDO[1], PAD_ALBEDO[2]);
+      setLight(p, glowCol, glowAmt);
+    });
+
+    drawWith(progs.plastic, meshes.racks, function (p) {
+      gl.uniform3f(p.u.uAlbedo, RACK_ALBEDO[0], RACK_ALBEDO[1], RACK_ALBEDO[2]);
+      gl.uniform1f(p.u.uUseMap, 0);
+      setLight(p, glowCol, glowAmt, 2.1);
     });
 
     drawWith(progs.plastic, meshes.shell, function (p) {
@@ -533,6 +642,12 @@
     });
 
     drawWith(progs.plastic, meshes.keyboard, function (p) {
+      gl.uniform3f(p.u.uAlbedo, KEY_ALBEDO[0], KEY_ALBEDO[1], KEY_ALBEDO[2]);
+      gl.uniform1f(p.u.uUseMap, 0);
+      setLight(p, glowCol, glowAmt);
+    });
+
+    drawWith(progs.plastic, meshes.mouse, function (p) {
       gl.uniform3f(p.u.uAlbedo, KEY_ALBEDO[0], KEY_ALBEDO[1], KEY_ALBEDO[2]);
       gl.uniform1f(p.u.uUseMap, 0);
       setLight(p, glowCol, glowAmt);
@@ -575,6 +690,16 @@
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
     gl.depthMask(false);
+
+    for (var ri = 0; ri < rackPanels.length; ri++) {
+      var rp = rackPanels[ri];
+      drawWith(progs.rack, rp.mesh, function (p) {
+        gl.uniform1f(p.u.uTime, t);
+        gl.uniform1f(p.u.uSeed, rp.seed);
+        gl.uniform1f(p.u.uUnits, rp.units);
+      });
+    }
+
     drawWith(progs.led, meshes.led, function (p) {
       var amber = CRT.state === 'off' || (CRT.state === 'warm' && pw.clock < 0.6);
       if (amber) gl.uniform3f(p.u.uColour, 1.0, 0.55, 0.12);
