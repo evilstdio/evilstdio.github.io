@@ -364,7 +364,7 @@
     TERM.emit([
       '',
       [['2 findings above threshold. ', 'err'], ['Full methodology in the report.', 'dim']],
-      [['This is a canned demo — no packets left your machine.', 'dim']],
+      [['This is a canned demo - no packets left your machine.', 'dim']],
       ''
     ], 0.05);
   };
@@ -382,6 +382,18 @@
       TERM.emit([[['unknown phosphor: ' + arg, 'err']]]);
     }
   };
+
+  CMD.sound = function (arg) {
+    if (!arg) {
+      TERM.emit([[['key clicks are ', 'dim'], [TERM.soundOn ? 'ON' : 'OFF', 'ok'],
+                  ['   (sound on | off)', 'dim']]]);
+      return;
+    }
+    var on = arg.toLowerCase() !== 'off';
+    TERM.onEvent('sound', on);
+    TERM.emit([[['key clicks ', 'dim'], [on ? 'ENABLED' : 'MUTED', on ? 'ok' : 'warn']]]);
+  };
+  CMD.mute = function () { CMD.sound('off'); };
 
   CMD.crt = function (arg) {
     var on = arg !== 'off';
